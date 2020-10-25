@@ -37,7 +37,7 @@ const getInsertionNodeElem = function(insertionNode, insertionTraversal, btn) {
   }
 };
 
-const addFieldsHandler = (btn) => {
+const addFieldsHandler = (originalEvent, btn) => {
   const assoc = btn.getAttribute('data-association');
   const assocs = btn.getAttribute('data-associations');
   const content = btn.getAttribute('data-association-insertion-template');
@@ -78,30 +78,33 @@ const addFieldsHandler = (btn) => {
   }
 
   new_contents.forEach((node) => {
-    const event = new CustomEvent('cocoon:before-insert', {detail: node, bubbles: true, cancelable: true});
+    const div = document.createElement('div');
+    div.innerHTML = node;
+    const contentNode = div.firstChild;;
+
+    const event = new CustomEvent('cocoon:before-insert', { detail: { insertedItem: contentNode, originalEvent: originalEvent }, bubbles: true, cancelable: true });
     insertionNodeElem.dispatchEvent(event);
 
     if(!event.defaultPrevented) {
+      const parent = insertionNodeElem.parentNode;
+
       switch(insertionMethod) {
+        case 'after':
+          parent.insertBefore(contentNode, insertionNodeElem.nextSibling);
+          break;
+        case 'append':
+          insertionNodeElem.appendChild(contentNode);
+          break;
+        // case 'prepend':
+        //   insertionMethod = 'afterbegin';
+        //   break;
         default:
         case 'before':
-          insertionMethod = 'beforebegin';
-        break;
-        case 'after':
-          insertionMethod = 'afterend';
-        break;
-        case 'append':
-          insertionMethod = 'beforeend';
-        break;
-        case 'prepend':
-          insertionMethod = 'afterbegin';
-        break;
+          parent.insertBefore(contentNode, insertionNodeElem);
+          break;
       }
 
-      insertionNodeElem.insertAdjacentHTML(insertionMethod, node);
-      insertionNodeElem.dispatchEvent(
-        new CustomEvent('cocoon:after-insert', {detail: node, bubbles: true, cancelable: true})
-      );
+      insertionNodeElem.dispatchEvent(new CustomEvent('cocoon:after-insert', { detail: { insertedItem: contentNode, originalEvent: originalEvent }, bubbles: true, cancelable: true }));
     }
   });
 };
@@ -110,7 +113,7 @@ document.addEventListener('click', (e) => {
   if(e.target.closest('.add_fields')) {
     e.preventDefault();
     e.stopPropagation();
-    addFieldsHandler(e.target.closest('.add_fields'));
+    addFieldsHandler(e, e.target.closest('.add_fields'));
   }
 });
 
@@ -119,7 +122,7 @@ const removeFieldsHandler = (btn) => {
   const nodeToDelete = btn.closest(`.${wrapperClass}`);
   const triggerNode = nodeToDelete.parentNode;
 
-  const event = new CustomEvent('cocoon:before-remove', {detail: nodeToDelete, bubbles: true, cancelable: true});
+  const event = new CustomEvent('cocoon:before-remove', { detail: nodeToDelete, bubbles: true, cancelable: true });
   triggerNode.dispatchEvent(event);
 
   if(!event.defaultPrevented) {
@@ -139,7 +142,7 @@ const removeFieldsHandler = (btn) => {
       }
 
       triggerNode.dispatchEvent(
-        new CustomEvent('cocoon:after-remove', {detail: nodeToDelete, bubbles: true, cancelable: true})
+        new CustomEvent('cocoon:after-remove', { detail: nodeToDelete, bubbles: true, cancelable: true })
       );
     }, timeout);
   }
